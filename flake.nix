@@ -1,50 +1,57 @@
 {
-  description = "Zig Example Webserver.";
+  description = "zig-example-webserver nix flake";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-
-    # Used for shell.nix
-    flake-compat = {
-      url = github:edolstra/flake-compat;
-      flake = false;
+    devshell.url = "github:numtide/devshell";
+    zig-overlay = {
+      url = "github:mitchellh/zig-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
-
+ 
   outputs = {
     self,
-    nixpkgs,
     flake-utils,
+    zig-overlay,
+    nixpkgs,
+    devshell,
     ...
-  } @ inputs:
-    flake-utils.lib.eachDefaultSystem (
-      system: let
-        pkgs = import nixpkgs {inherit system;};
-      in {
-        devShells.default = pkgs.mkShell {
-          nativeBuildInputs = with pkgs;
-            [
-              cmake
-              gdb
-              libxml2
-              ninja
-              qemu
-              wasmtime
-              zlib
-            ]
-            ++ (with llvmPackages_16; [
-              clang
-              clang-unwrapped
-              lld
-              llvm
-            ]);
-
-          hardeningDisable = ["all"];
+  }: 
+  (flake-utils.lib.eachDefaultSystem
+    (system:
+      let
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [zig-overlay.overlays.default devshell.overlays.default];
         };
+    in 
+    {
+      defaultPackage = pkgs.stdenv.mkDerivation {
+        pname = "example-zig-webserver";
+        version = "master";
+        src = ./.;
 
-        # For compatibility with older versions of the `nix` binary
-        devShell = self.devShells.${system}.default;
-      }
-    );
+        buildInputs = [ pkgs.zigpkgs.master ];
+        preBuild = ''
+          export HOME=$TMPDIR;
+        '';
+
+        buildPhase = ''
+          mkdir -p $out
+          ${pkgs.zigpkgs.master}/bin/zig build run --prefix $out
+        '';
+
+        # required for compilation
+        XDG_CACHE_HOME = ".cache";
+      };
+
+      defaultApp = flake-utils.lib.mkApp {
+        drv = self.defaultPackage."${system}";
+      };
+
+      devShells.default = import ./shell.nix { inherit pkgs; };
+    })
+  );
 }

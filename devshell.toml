@@ -1,0 +1,8 @@
+[devshell]
+name = "development-shell"
+motd = """{106}Nix Development Shell{reset}
+Use CTRL-D to leave the shell
+"""
+
+packages = []
+

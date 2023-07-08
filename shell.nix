@@ -1,12 +1,17 @@
-(import
-  (
+{ pkgs ? (
     let
-      flake-compat = (builtins.fromJSON (builtins.readFile ./flake.lock)).nodes.flake-compat;
+      inherit (builtins) fetchTree fromJSON readFile;
+      inherit ((fromJSON (readFile ./flake.lock)).nodes) nixpkgs devshell;
     in
-      fetchTarball {
-        url = "https://github.com/edolstra/flake-compat/archive/${flake-compat.locked.rev}.tar.gz";
-        sha256 = flake-compat.locked.narHash;
-      }
+    import (fetchTree nixpkgs.locked) {
+      overlays = [];
+    }
   )
-  {src = ./.;})
-.shellNix
+}: let
+in
+pkgs.devshell.mkShell {
+  packages = [
+    pkgs.zigpkgs.master
+  ];
+  imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
+}
