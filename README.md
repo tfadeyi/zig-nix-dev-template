@@ -1,4 +1,4 @@
-# example-zig-webserver
+# zig-nix-dev-template
 Just trying to write an example webserver in Zig.
 
 ## Requirements
